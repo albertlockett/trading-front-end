@@ -7,6 +7,10 @@
   opacity: 0.7;
 }
 
+.inflection-point {
+  opacity: 0.5;
+}
+
 .time-grid {
   opacity: 0.25
 }

@@ -1,13 +1,14 @@
 import React, { Component } from 'react';
 import * as d3 from 'd3';
 import './chart.css'
-import data from './data'
+import data, { inflectionPoints } from './data'
 
 class Chart extends Component {
 
   constructor(props, context) {
     super(props, context)
     this.data = data;
+    this.inflectionPoints = inflectionPoints;
     this.formatDateTick = this.formatDateTick.bind(this);
     // this.filterXAxis = this.filterXAxis.bind(this);
   }
@@ -48,8 +49,8 @@ class Chart extends Component {
 
   drawChart() {
 
-    const height = 500;
-    const width = 1500;
+    const height = 700;
+    const width = 2100;
     const volumePart = 0.2;
     const margin = { top: 5, bottom: 30, right: 0, left: 40 }
 
@@ -231,12 +232,25 @@ class Chart extends Component {
         tooltip.style('display', 'none')
         tooltip.style('opacity',0)
       })
+
+
+      // draw inflection points 
+      svg.selectAll("circle.inflection-point")
+        .data([
+          ...this.inflectionPoints.supports.map(f => ({ ...f, support: true })),
+          ...this.inflectionPoints.resistance.map(f => ({ ...f, support: false })),
+        ])
+        .enter()
+        .append("circle")
+        .attr("cx", (d, i) => dateScale(d.bar.date.startTimestamp) + barContainerWidth / 2 )
+        .attr("cy", (d, i) => yScale(d.bar.close))
+        .attr("r", Math.max(6, barContainerWidth / 2))
+        .attr("fill", d => d.support ? "cyan" : "yellow")
+        .attr("class", "inflection-point")
   }
 
   render() {
-    return (
-      <h1>Chart</h1>
-    )
+    return (<div />)
   }
 }
 
