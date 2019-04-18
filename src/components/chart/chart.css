@@ -1,8 +1,28 @@
 .chart-container {
-  border: 1px solid black;
+  
 }
 
 .grid-line .tick line {
   stroke: gray;
   opacity: 0.7;
+}
+
+.time-grid {
+  opacity: 0.25
+}
+
+.time-grid:hover {
+  fill: blue;
+}
+
+.tooltip {
+  background: white;
+  border: 1px solid gray;
+  color: #333;
+  font-size: 12px;
+  padding: 10px;
+  position: absolute;
+  z-index: 10;
+  display: block;
+  opacity: 0;
 }
