@@ -1,15 +1,18 @@
 import React, { Component } from 'react';
-import logo from './logo.svg';
+import { ApolloProvider } from 'react-apollo';
 import './App.css';
+import client from './graphql-client'
 import ChartContainer from './components/chart/ChartContainer'
 
 class App extends Component {
   render() {
     return (
-      <div className="App">
-        <br />
-        <ChartContainer />
-      </div>
+      <ApolloProvider client={client}>
+        <div className="App">
+          <br />
+          <ChartContainer />
+        </div>
+      </ApolloProvider>
     );
   }
 }

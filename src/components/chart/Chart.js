@@ -1,21 +1,33 @@
 import React, { Component } from 'react';
+import { Query } from 'react-apollo';
 import * as d3 from 'd3';
+import gql from 'graphql-tag'
 import './chart.css'
 import data, { inflectionPoints } from './data'
 
-class Chart extends Component {
+export class Chart extends Component {
 
   constructor(props, context) {
     super(props, context)
-    this.data = data;
-    this.inflectionPoints = inflectionPoints;
+    console.log("Constructor run")
+    this.data = [];
+    this.inflectionPoints = {};
     this.formatDateTick = this.formatDateTick.bind(this);
     // this.filterXAxis = this.filterXAxis.bind(this);
   }
 
   componentDidMount() {
-    this.drawChart();
+    this.data.push.apply(this.data, this.props.data)
+    // this.inflectionPoints.push.apply(this.data, this.props.inflectionPoints)
+    Object.assign(this.inflectionPoints, this.props.inflectionPoints)
+    this.drawChart()
   }
+
+  componentWillReceiveProps(newProps) {
+    // while (this.data.length > 0) this.data.pop()
+    // this.data.push.apply(this.data, newProps.data)
+    // Object.assign(this.inflectionPoints, newProps.inflectionPoints)
+  }  
 
   /**
    * Color green or red depending on price move for period
@@ -48,12 +60,14 @@ class Chart extends Component {
   }
 
   drawChart() {
-
-    const height = 700;
-    const width = 2100;
+    
+    const height = 500;
+    const width = window.innerWidth - 10;
     const volumePart = 0.2;
     const margin = { top: 5, bottom: 30, right: 0, left: 40 }
+    const barContainerWidth = width / this.data.length;
 
+    d3.select("svg.chart-container").remove()
     const svg = d3.select("body")
       .append("svg")
       .attr("width", width)
@@ -64,6 +78,7 @@ class Chart extends Component {
     const maxPrice = d3.max(this.data, d => Math.max(d.open, d.close))
     const minPrice = d3.min(this.data, d => Math.min(d.open, d.close))
     const maxVolume = d3.max(this.data, d => d.volume)
+
 
     // create scales
     const yScale = d3.scaleLinear()
@@ -132,10 +147,11 @@ class Chart extends Component {
       .call(volumeGrid)
       .call(g => g.select(".domain").remove())
 
-
     const xTickSpacing = 100;
+    console.log(Math.floor(barContainerWidth * xTickSpacing))
     const dateAxis = d3.axisBottom(dateScale)
-      .tickValues(dateScale.domain().filter((d, i) => i % Math.floor((width - margin.left) / xTickSpacing) === 0))
+      // .tickValues(dateScale.domain().filter((d, i) => i % Math.floor((width - margin.left) / (xTickSpacing)) === 0))
+      .tickValues(dateScale.domain().filter((d, i) => i % Math.floor(xTickSpacing / barContainerWidth) === 0))
       .tickFormat(this.formatDateTick)
 
     // append date axis
@@ -143,8 +159,6 @@ class Chart extends Component {
       .attr('transform', `translate(0, ${height - margin.bottom})`)
       .call(dateAxis)
       .call(g => g.select(".domain").remove())
-      
-    const barContainerWidth = width / this.data.length;
 
     // append rects for even/modd month
     svg.selectAll("rect.time-grid")
@@ -243,8 +257,11 @@ class Chart extends Component {
         .enter()
         .append("circle")
         .attr("cx", (d, i) => dateScale(d.bar.date.startTimestamp) + barContainerWidth / 2 )
-        .attr("cy", (d, i) => yScale(d.bar.close))
-        .attr("r", Math.max(6, barContainerWidth / 2))
+        .attr("cy", (d, i) => d.support 
+          ? yScale(Math.min(d.bar.open, d.bar.close))
+          : yScale(Math.max(d.bar.open, d.bar.close))
+        )
+        .attr("r", Math.max(4, barContainerWidth / 2))
         .attr("fill", d => d.support ? "cyan" : "yellow")
         .attr("class", "inflection-point")
   }
@@ -254,4 +271,58 @@ class Chart extends Component {
   }
 }
 
-export default Chart;
+// export default Chart;
+
+const graphqlQuery = gql`
+fragment BarFields on Bar {
+  high
+  low
+  open
+  close
+  date {
+    simpleName
+    endTimestamp
+    startTimestamp
+  }
+  volume
+}
+
+fragment InflectionPointFields on InflectionPoint {
+  index
+  bar { ...BarFields }
+}
+
+query chart_query($from: String! $to: String! $symbol: String! $localLowDays: Int = 20) {
+  timeSeries(from: $from to: $to symbol: $symbol) {
+    inflectionPoints(localLowDays: $localLowDays) {
+      resistance { ... InflectionPointFields }
+      supports { ... InflectionPointFields }
+    }
+    bars { ... BarFields }
+  }
+}
+`
+
+
+export default function WrappedChart(props) {
+  const variables = {
+    from: props.from,
+    to: props.to,
+    symbol: props.symbol
+  }
+  return (
+    <Query query={graphqlQuery} variables={variables} >
+      {({ data, loading, error }) => {
+        if (loading) return <div>loading</div>;
+        if (error) return <p>ERROR</p>;
+
+        return (
+          <Chart 
+            data={data.timeSeries.bars} 
+            inflectionPoints={data.timeSeries.inflectionPoints}
+            />
+        );
+      }}
+    </Query>
+  );
+};
